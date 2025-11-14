@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Ich packe meinen Koffer</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: sans-serif;
+    background: url('https://media.istockphoto.com/id/2235012855/de/foto/ge%C3%B6ffneter-blauer-koffer-mit-kleidung-und-accessoires-auf-dem-bett-in-einem-modernen.jpg?s=612x612&w=0&k=20&c=W_D1gsX4p3Ibj3UZDUATF9GUmbfoTobI0btGwCLq3dQ=') no-repeat center center fixed;
+    background-size: cover;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: 100%;
+  }
+
+  #koffer-container {
+    position: absolute;
+    top: 55%;                /* vertikal Mitte */
+    left: 50%;               /* horizontal Mitte */
+    transform: translate(-50%, -50%); /* exakte Zentrierung */
+    width: 800px;
+    height: 300px;
+    border: none; 
+background-color: transparent; /* leichter Hintergrund */
+}
+
+  .item {
+    width: 200px;
+    height: 200px;
+    position: absolute;
+    cursor: grab;
+    z-index: 10;
+  }
+
+  #controls {
+    position: absolute;
+    bottom: 10px;
+  }
+
+  button {
+    padding: 10px 20px;
+    font-size: 16px;
+    margin: 0 5px;
+  }
+
+  /* Gewinn-Popup */
+  #win-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  #win-popup-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    font-size: 24px;
+    max-width: 400px;
+  }
+
+  #win-popup-content button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+@media (max-width: 600px) {
+  #win-popup-content {
+    font-size: 28px;       /* größere Schrift */
+    padding: 40px;         /* mehr Abstand innen */
+    max-width: 90%;        /* breiter */
+  }
+
+  #win-popup-content button {
+    font-size: 20px;       /* größere Taste */
+    padding: 12px 24px;    /* mehr Klickfläche */
+  }
+
+</style>
+</head>
+<body>
+
+<div id="koffer-container"></div>
+<div id="controls">
+  <button id="reset-btn">Reset</button>
+</div>
+
+<!-- Gewinn-Popup -->
+<div id="win-popup">
+  <div id="win-popup-content">
+    <p>Herzlichen Glückwunsch. Der Koffer ist gepackt.<br>Jetzt geht es weiter bei N XXX E YYY.</p>
+    <button id="win-popup-close">OK</button>
+  </div>
+</div>
+
+<script>
+const koffer = document.getElementById('koffer-container');
+const resetBtn = document.getElementById('reset-btn');
+
+const items = [
+  'https://img-1.kwcdn.com/product/open/2024-05-24/1716537117499-ea01421f203142afa3feed0b79a865d7-goods.jpeg?imageView2/2/w/264/q/70/format/avif',
+  'https://img-1.kwcdn.com/product/fancy/ef508564-ca8d-4347-a5b7-631d979939c1.jpg?imageView2/2/w/264/q/70/format/avif',
+  'https://cdn.webshopapp.com/shops/343502/files/452039086/700x700x2/lactona-lactona-zahnbuerste-m-39-soft.jpg',
+  'https://m.media-amazon.com/images/I/21aYvnuCgZL._SY300_SX300_QL70_ML2_.jpg',
+  'https://img01.ztat.net/article/spp-media-p1/b742189aff8c4ab5802ec63d1c2c2b9d/1d665f52da714bf590e33d7243bdddb0.jpg?imwidth=762&filter=packshot',
+  'https://m.media-amazon.com/images/I/71ZPMEHhC6L._AC_UY1000_.jpg',
+  'https://media.istockphoto.com/id/1210121455/de/foto/gelbe-hose-isoliert-auf-wei%C3%9Fem-hintergrund.jpg?s=612x612&w=0&k=20&c=-K1Xs7puw9k6Cpsba3LvE0RVXto-03fTxdaiF3hvQL8=',
+  'https://assets.manufactum.de/p/207/207579/207579_01.jpg/handseife-wacholder-zirbe.jpg?profile=opengraph_mf',
+  'https://www.marburger.de/media/catalog/product/cache/7be21357e6b117b09be6a912114c7ede/3/0/306707620020_4164037500020_1_dz6oaat9gdr58acv.jpg',
+  'https://i.otto.de/i/otto/6544e177-84d1-54b7-8c90-16db965df8cb?h=1040&w=1102&sm=clamp&upscale=true&fmt=auto&qlt=40&unsharp=0,1,0.6,7',
+  'https://images.thalia.media/00/-/762bca1cd8d145a7a3b797306671018b/als-ich-vom-himmel-fiel-taschenbuch-juliane-koepcke.jpeg'
+];
+
+let sequence = [];
+let placed = [];
+
+function enableTouchDrag(img) {
+  let offsetX, offsetY;
+
+  img.addEventListener('touchstart', e => {
+    const touch = e.touches[0];
+    offsetX = touch.clientX - img.getBoundingClientRect().left;
+    offsetY = touch.clientY - img.getBoundingClientRect().top;
+    img.style.position = 'absolute';
+    img.style.zIndex = 1000;
+  });
+
+  img.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    img.style.left = (touch.clientX - offsetX) + 'px';
+    img.style.top = (touch.clientY - offsetY) + 'px';
+  });
+
+  img.addEventListener('touchend', e => {
+    const kRect = koffer.getBoundingClientRect();
+    const iRect = img.getBoundingClientRect();
+    const idx = parseInt(img.dataset.idx);
+
+    // Prüfen, ob Item über der Dropzone liegt
+    if (
+      iRect.left + iRect.width/2 > kRect.left &&
+      iRect.left + iRect.width/2 < kRect.right &&
+      iRect.top + iRect.height/2 > kRect.top &&
+      iRect.top + iRect.height/2 < kRect.bottom
+    ) {
+      if (idx === placed.length) {
+        placed.push(sequence[idx]);
+        img.remove();
+        if (placed.length === sequence.length) startNextStep();
+      } else {
+        resetRound();
+      }
+    }
+  });
+}
+
+function createItem(src, index) {
+  const img = document.createElement('img');
+  img.src = src;
+  img.classList.add('item');
+  img.dataset.idx = index;
+
+  const kRect = koffer.getBoundingClientRect();
+  const itemSize = 200; // Größe der Items
+
+  const maxWidth = window.innerWidth - itemSize;
+  const maxHeight = window.innerHeight - itemSize;
+
+  let left, top;
+
+  // Zufällige Position, die die Dropzone ausschließt
+  do {
+    left = Math.random() * maxWidth;
+    top = Math.random() * maxHeight;
+  } while (
+    left + itemSize > kRect.left && left < kRect.right &&
+    top + itemSize > kRect.top && top < kRect.bottom
+  );
+
+  img.style.left = left + 'px';
+  img.style.top = top + 'px';
+
+  img.draggable = true;
+
+  // Desktop Drag
+  img.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('text/plain', index);
+  });
+
+  // Touch Drag
+  enableTouchDrag(img);
+
+  document.body.appendChild(img);
+}
+function showSequence() {
+  document.querySelectorAll('.item').forEach(i => i.remove());
+  sequence.forEach((src, idx) => createItem(src, idx));
+}
+
+function startNextStep() {
+  if (sequence.length === items.length) {
+    document.getElementById('win-popup').style.display = 'flex';
+    return;
+  }
+  sequence.push(items[sequence.length]);
+  placed = [];
+  showSequence();
+}
+
+function resetRound() {
+  alert('Falscher Gegenstand! Runde startet neu.');
+  sequence = [];
+  placed = [];
+  startNextStep();
+}
+
+koffer.addEventListener('dragover', e => e.preventDefault());
+koffer.addEventListener('drop', e => {
+  e.preventDefault();
+  const idx = parseInt(e.dataTransfer.getData('text/plain'));
+  if (idx === placed.length) {
+    placed.push(sequence[idx]);
+    document.querySelectorAll('.item')[0].remove();
+    if (placed.length === sequence.length) startNextStep();
+  } else {
+    resetRound();
+  }
+});
+
+resetBtn.addEventListener('click', () => {
+  sequence = [];
+  placed = [];
+  startNextStep();
+});
+
+// Gewinn-Popup schließen
+document.getElementById('win-popup-close').onclick = () => {
+  document.getElementById('win-popup').style.display = 'none';
+  sequence = [];
+  placed = [];
+  startNextStep();
+};
+
+startNextStep();
+</script>
+
+</body>
+</html>
